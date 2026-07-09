@@ -555,13 +555,12 @@ function appendAIChunk(chunk) {
   // Si no hay burbuja activa (arranque del turno, o se cerró tras una tool call),
   // creamos una nueva para seguir streameando debajo del chip de la herramienta.
   if (!state.aiCurrentMsg) state.aiCurrentMsg = createAIStreamMessage();
-  // Sacar el cursor de typing si existe
-  const typing = state.aiCurrentMsg.querySelector('.ai-typing');
-  if (typing) typing.remove();
   state.aiCurrentText += chunk; // acumular para guardar en el historial
-  state.aiCurrentMsg.innerHTML += escapeHtml(chunk);
-  // Re-agregar cursor
-  state.aiCurrentMsg.innerHTML += '<span class="ai-typing">▋</span>';
+  // Re-renderizamos TODO el texto acumulado como markdown (bloques ```code```,
+  // inline `x`, negrita, saltos) + el cursor de typing. Reconstruir en cada chunk
+  // es barato para respuestas de este tamaño y hace que los bloques de código se
+  // vayan formando en vivo, con la indentación preservada.
+  state.aiCurrentMsg.innerHTML = renderAIMarkdown(state.aiCurrentText) + '<span class="ai-typing">▋</span>';
   const container = document.getElementById('ai-messages');
   container.scrollTop = container.scrollHeight;
 }
@@ -582,8 +581,13 @@ function showAIError(errText) {
 function finalizeAIMessage() {
   if (!state.aiStreaming) return; // idempotente (onDone y onError pueden solaparse)
   if (state.aiCurrentMsg) {
-    const typing = state.aiCurrentMsg.querySelector('.ai-typing');
-    if (typing) typing.remove();
+    if (state.aiCurrentText && !state.aiErrored) {
+      // Render final limpio (sin cursor), por si el último chunk cerró un bloque.
+      state.aiCurrentMsg.innerHTML = renderAIMarkdown(state.aiCurrentText);
+    } else {
+      const typing = state.aiCurrentMsg.querySelector('.ai-typing');
+      if (typing) typing.remove();
+    }
   }
   // Guardar la respuesta en el historial (memoria). Si el turno falló sin
   // respuesta válida, sacamos el mensaje de usuario colgado para no dejar dos
@@ -601,6 +605,35 @@ function finalizeAIMessage() {
   state.aiErrored = false;
   state.aiCurrentMsg = null;
   state.aiStreaming = false;
+}
+
+// Markdown liviano para las respuestas del agente. Partimos el texto por los cercos
+// ``` : los segmentos IMPARES son bloques de codigo y los PARES prosa. No usamos
+// placeholders, asi que no hay riesgo de colision con el propio texto. Cada segmento
+// se escapa por separado (la salida del modelo NO es confiable) y solo agregamos tags
+// seguros que controlamos: <pre> para bloques, <code> inline, <strong> y <br>. Un
+// cerco sin cerrar a mitad del stream queda como bloque abierto hasta que llega el
+// ``` de cierre.
+function renderAIMarkdown(text) {
+  const NL = String.fromCharCode(10);
+  const AST = String.fromCharCode(42);
+  const ESA = String.fromCharCode(92, 42);
+  const boldRe = new RegExp(ESA + ESA + '([^' + AST + ']+)' + ESA + ESA, 'g');
+  const parts = String(text).split('```');
+  let out = '';
+  for (let i = 0; i < parts.length; i++) {
+    if (i % 2 === 1) {
+      const lines = parts[i].split(NL);
+      lines.shift();
+      out += `<pre class="ai-code"><code>${escapeHtml(lines.join(NL).trimEnd())}</code></pre>`;
+    } else {
+      out += escapeHtml(parts[i])
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(boldRe, '<strong>$1</strong>')
+        .split(NL).join('<br>');
+    }
+  }
+  return out;
 }
 
 // AI streaming listeners

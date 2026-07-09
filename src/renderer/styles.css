@@ -535,6 +535,31 @@ html, body {
   border-radius: 3px;
   color: var(--cyan);
 }
+/* Bloques de código en las respuestas del agente (```): monospace, indentación
+   preservada y scroll horizontal para líneas largas (como el bloque de err-fix). */
+.ai-bubble pre.ai-code {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.5;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--cyan);
+  border-radius: 5px;
+  padding: 9px 11px;
+  margin: 6px 0;
+  overflow-x: auto;
+  white-space: pre;
+  color: var(--text);
+}
+/* Dentro de un bloque, el <code> no lleva el pill del inline. */
+.ai-bubble pre.ai-code code {
+  font-family: inherit;
+  font-size: inherit;
+  background: none;
+  padding: 0;
+  border-radius: 0;
+  color: inherit;
+}
 /* Chip de actividad del agente (read_file / list_dir / path_info). SVG + texto,
    sin glyphs. El borde izquierdo y el estado cambian de color según el resultado. */
 .ai-tool-chip {
