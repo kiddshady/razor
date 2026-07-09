@@ -1,0 +1,75 @@
+{
+  "name": "razor",
+  "version": "0.1.0",
+  "description": "RAZOR — Terminal AI embebido con estética cyberpunk",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "dist": "electron-builder --win",
+    "dist:portable": "electron-builder --win portable",
+    "dist:nsis": "electron-builder --win nsis"
+  },
+  "build": {
+    "appId": "com.umbra.razor",
+    "productName": "RAZOR",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "src/**/*",
+      "node_modules/**/*",
+      "package.json",
+      "!node_modules/**/{CHANGELOG.md,README.md,readme.md,*.d.ts,*.map,*.ts}",
+      "!node_modules/**/{test,tests,__tests__,docs,doc,examples,example}/**"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "portable",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.ico"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "RAZOR"
+    },
+    "portable": {
+      "artifactName": "RAZOR-${version}-portable.exe"
+    }
+  },
+  "keywords": [
+    "terminal",
+    "ai",
+    "electron",
+    "cyberpunk"
+  ],
+  "author": "Fran",
+  "license": "MIT",
+  "devDependencies": {
+    "@electron/rebuild": "^4.1.0",
+    "electron": "^33.0.0",
+    "electron-builder": "^25.1.8"
+  },
+  "dependencies": {
+    "@xterm/addon-fit": "^0.10.0",
+    "@xterm/addon-web-links": "^0.11.0",
+    "@xterm/addon-webgl": "^0.18.0",
+    "@xterm/xterm": "^5.5.0",
+    "node-pty": "^1.0.0"
+  }
+}

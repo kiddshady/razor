@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>RAZOR</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <!-- TITLEBAR -->
+    <div id="titlebar">
+      <div class="brand">RAZOR</div>
+      <div id="tabs"></div>
+      <div class="new-tab" id="new-tab" title="New tab (Ctrl+T)">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
+      </div>
+      <div class="win-controls">
+        <div class="win-btn" id="win-min" title="Minimize"><svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.6"><line x1="5" y1="12" x2="19" y2="12"></line></svg></div>
+        <div class="win-btn close" id="win-close" title="Close"><svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg></div>
+      </div>
+    </div>
+
+    <!-- BODY -->
+    <div id="body">
+      <!-- SIDEBAR -->
+      <div id="sidebar">
+        <div class="side-icon active" title="Sessions" data-view="sessions">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+        </div>
+        <div class="side-icon" title="Snippets" data-view="snippets">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline></svg>
+        </div>
+        <div class="side-icon" title="History" data-view="history">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v5h5"></path><path d="M3.05 13A9 9 0 106 5.3L3 8"></path><path d="M12 7v5l4 2"></path></svg>
+        </div>
+        <div class="side-icon" title="Settings" data-view="settings">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"></path></svg>
+        </div>
+        <div class="spacer"></div>
+        <div class="side-icon" title="Command palette" id="open-palette">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.05" y2="16.05"></line></svg>
+        </div>
+      </div>
+
+      <!-- MAIN COLUMN -->
+      <div id="main">
+        <div id="terminal-container"></div>
+
+        <!-- SNIPPETS PANEL -->
+        <div id="snippets-panel" class="side-panel hidden">
+          <div class="panel-header">
+            <span class="panel-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg> Snippets</span>
+            <button class="panel-close" title="Back to terminal"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="panel-body">
+            <div class="snippet-add">
+              <input type="text" id="snippet-name" class="panel-input" placeholder="Snippet name…" />
+              <textarea id="snippet-cmd" class="panel-input panel-textarea" placeholder="Command or text block…"></textarea>
+              <button id="snippet-save" class="panel-btn">+ Save snippet</button>
+            </div>
+            <div id="snippet-list" class="panel-list"></div>
+          </div>
+        </div>
+
+        <!-- HISTORY PANEL -->
+        <div id="history-panel" class="side-panel hidden">
+          <div class="panel-header">
+            <span class="panel-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg> History</span>
+            <div class="panel-actions">
+              <button id="history-clear" class="panel-btn-sm">Clear</button>
+              <button class="panel-close" title="Back to terminal"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+            </div>
+          </div>
+          <div class="panel-body">
+            <div id="history-list" class="panel-list"></div>
+          </div>
+        </div>
+
+        <!-- SETTINGS PANEL -->
+        <div id="settings-panel" class="side-panel hidden">
+          <div class="panel-header">
+            <span class="panel-title"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg> Settings</span>
+            <button class="panel-close" title="Back to terminal"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg></button>
+          </div>
+          <div class="panel-body">
+            <div class="settings-group">
+              <div class="settings-group-title">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="5" width="14" height="11.5" rx="3.5"/><path d="M12 5V2.8"/><circle cx="12" cy="1.8" r="1.1" fill="currentColor" stroke="none"/><path d="M3.5 9.5v2.5"/><path d="M20.5 9.5v2.5"/><path d="M9.5 9.4v2.8"/><path d="M14.5 9.4v2.8"/><path d="M5.5 21v-1.5a2.5 2.5 0 0 1 2.5-2.5h8a2.5 2.5 0 0 1 2.5 2.5V21"/></svg>
+                AI Agent
+              </div>
+              <p class="settings-hint">Provider, credentials and model used by the terminal assistant. Stored locally on this machine.</p>
+
+              <label class="settings-label">Provider</label>
+              <div class="rz-select" id="ai-provider-select" data-value="ollama">
+                <button type="button" class="panel-input rz-select-trigger" id="ai-provider-trigger">
+                  <span class="rz-select-value" id="ai-provider-value">Ollama Cloud</span>
+                  <svg class="rz-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="rz-options" id="ai-provider-options"></div>
+              </div>
+
+              <label class="settings-label" for="ai-model">Model</label>
+              <div class="rz-combo" id="ai-model-combo">
+                <input type="text" id="ai-model" class="panel-input rz-combo-input" placeholder="model id…" autocomplete="off" spellcheck="false" />
+                <button type="button" class="rz-combo-toggle" id="ai-model-toggle" title="Models">
+                  <svg class="rz-chevron" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="rz-options" id="ai-model-options"></div>
+              </div>
+
+              <label class="settings-label" for="ai-apikey">API Key</label>
+              <div class="settings-key-row">
+                <input type="password" id="ai-apikey" class="panel-input" placeholder="Paste your API key…" autocomplete="off" spellcheck="false" />
+                <button id="ai-apikey-toggle" class="settings-eye" type="button" title="Show / hide">
+                  <svg class="eye-open" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg>
+                  <svg class="eye-off" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                </button>
+              </div>
+
+              <label class="settings-label" for="ai-baseurl">Base URL</label>
+              <input type="text" id="ai-baseurl" class="panel-input" placeholder="https://…" autocomplete="off" spellcheck="false" />
+
+              <label class="settings-label" for="ai-system-prompt">System prompt</label>
+              <textarea id="ai-system-prompt" class="panel-input panel-textarea" placeholder="Optional — customize the agent's persona/behavior. Empty = default RAZOR persona. Terminal context is always appended." spellcheck="false"></textarea>
+
+              <div class="settings-subtitle">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                Tool permissions
+              </div>
+              <p class="settings-hint">Control what R7 can do. <b>Off</b> = hidden from the agent · <b>Ask</b> = confirm each use · <b>Allow</b> = run automatically.</p>
+              <div id="ai-tool-perms" class="tool-perms"></div>
+
+              <div class="settings-actions">
+                <button id="ai-settings-save" class="panel-btn">Save settings</button>
+                <span id="ai-settings-status" class="settings-status"></span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- BOTTOM BAR (error / suggestion) -->
+        <div id="bottom-bar" class="hidden">
+          <div class="err-icon">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+          </div>
+          <div class="err-content">
+            <div class="err-header">
+              <span class="err-label">Error detected</span>
+              <span class="err-loc" id="err-loc">TS2345 · loop.ts:84</span>
+            </div>
+            <div class="err-msg" id="err-msg"></div>
+            <div class="err-fix" id="err-fix"></div>
+          </div>
+          <div class="err-actions">
+            <div class="btn-fix" id="apply-fix">Apply fix</div>
+            <div class="btn-dismiss" id="dismiss-fix">Dismiss</div>
+          </div>
+        </div>
+
+        <!-- STATUS BAR -->
+        <div id="status-bar">
+          <span class="cwd" id="status-cwd">~</span>
+          <span class="branch" id="status-branch"></span>
+          <div class="spacer"></div>
+          <span class="shell" id="status-shell">zsh</span>
+          <span class="time" id="status-time"></span>
+          <span class="exit" id="status-exit"></span>
+        </div>
+
+        <!-- AI DOCK -->
+        <div id="ai-dock">
+          <div class="ai-header">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="7" width="14" height="12" rx="3.5"/><path d="M12 7V4.3"/><circle cx="12" cy="3.2" r="1.15" fill="currentColor" stroke="none"/><path d="M3.5 11.5v3"/><path d="M20.5 11.5v3"/><path d="M9.5 11.5v3"/><path d="M14.5 11.5v3"/></svg>
+            <span class="ai-title">AI Agent</span>
+            <span class="ai-hint">Ctrl+Shift+A</span>
+          </div>
+          <div class="ai-messages" id="ai-messages">
+            <div class="ai-placeholder">Ask something about the terminal or wait for error detection…</div>
+          </div>
+          <div class="ai-input-wrap">
+            <div>
+              <input type="text" id="ai-input" placeholder="Ask about the terminal…" />
+              <button id="ai-send" title="Send (Enter)">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 10 4 15 9 20"></polyline><path d="M20 4v7a4 4 0 0 1-4 4H4"></path></svg>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- COMMAND PALETTE -->
+    <div id="palette-overlay" class="hidden">
+      <div id="palette">
+        <input type="text" id="palette-input" placeholder="Type a command or search…" />
+        <div id="palette-results"></div>
+      </div>
+    </div>
+
+    <!-- CRT SCANLINES OVERLAY -->
+    <div id="crt-overlay"></div>
+  </div>
+
+  <script src="../../node_modules/@xterm/xterm/lib/xterm.js"></script>
+  <script src="../../node_modules/@xterm/addon-fit/lib/addon-fit.js"></script>
+  <script src="../../node_modules/@xterm/addon-web-links/lib/addon-web-links.js"></script>
+  <script src="../../node_modules/@xterm/addon-webgl/lib/addon-webgl.js"></script>
+  <script src="renderer.js"></script>
+</body>
+</html>
