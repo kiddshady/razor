@@ -674,7 +674,7 @@ ipcMain.handle('update:check', (event, opts) => {
   updateManual = !!(opts && opts.manual);
   if (!app.isPackaged) { simCheck(); return { simulated: true }; }
   const up = getAutoUpdater();
-  if (!up) { sendUpdate('error', { error: 'Updater no disponible.' }); return { ok: false }; }
+  if (!up) { sendUpdate('error', { error: 'Updater unavailable.' }); return { ok: false }; }
   wireAutoUpdater(up);
   Promise.resolve(up.checkForUpdates()).catch((err) => sendUpdate('error', { error: err.message }));
   return { ok: true };

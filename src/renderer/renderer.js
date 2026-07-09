@@ -674,7 +674,7 @@ function utRow(icon, label, title, sub, closable) {
         `<div class="ut-title">${title}</div>` +
         (sub ? `<div class="ut-sub">${sub}</div>` : '') +
       `</div>` +
-      (closable ? `<button class="ut-close" data-ut="later" title="Descartar">${UT_SVG.x}</button>` : '') +
+      (closable ? `<button class="ut-close" data-ut="later" title="Dismiss">${UT_SVG.x}</button>` : '') +
     `</div>`
   );
 }
@@ -698,47 +698,47 @@ function renderUpdate(status) {
   switch (phase) {
     case 'checking':
       if (!manual) return; // auto-check: en silencio hasta que haya novedad
-      updateToast.render(utRow(UT_SVG.spin, 'Buscando', 'Comprobando actualizaciones…', '', false));
+      updateToast.render(utRow(UT_SVG.spin, 'Checking', 'Checking for updates…', '', false));
       break;
     case 'available':
       updateToast.render(
-        utRow(UT_SVG.rocket, 'Actualización', `RAZOR <b>v${version}</b> disponible`, 'Una nueva versión está lista para descargar.', true) +
+        utRow(UT_SVG.rocket, 'Update', `RAZOR <b>v${version}</b> is available`, 'A new version is ready to download.', true) +
         `<div class="ut-actions">` +
-          `<button class="ut-btn primary" data-ut="download">Descargar</button>` +
-          `<button class="ut-btn ghost" data-ut="later">Después</button>` +
+          `<button class="ut-btn primary" data-ut="download">Download</button>` +
+          `<button class="ut-btn ghost" data-ut="later">Later</button>` +
         `</div>`
       );
       break;
     case 'downloading': {
       const pct = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
       updateToast.render(
-        utRow(UT_SVG.down, 'Descargando', `Bajando la actualización… <span class="ut-pct">${pct}%</span>`, '', false) +
+        utRow(UT_SVG.down, 'Downloading', `Downloading update… <span class="ut-pct">${pct}%</span>`, '', false) +
         `<div class="ut-progress"><div class="ut-progress-bar" style="width:${pct}%"></div></div>`
       );
       break;
     }
     case 'downloaded':
       updateToast.render(
-        utRow(UT_SVG.check, 'Listo', `RAZOR <b>v${version}</b> descargada`, 'Reiniciá para terminar de instalar.', true) +
+        utRow(UT_SVG.check, 'Ready', `RAZOR <b>v${version}</b> downloaded`, 'Restart to finish installing.', true) +
         `<div class="ut-actions">` +
-          `<button class="ut-btn primary" data-ut="install">Reiniciar e instalar</button>` +
-          `<button class="ut-btn ghost" data-ut="later">Más tarde</button>` +
+          `<button class="ut-btn primary" data-ut="install">Restart & install</button>` +
+          `<button class="ut-btn ghost" data-ut="later">Later</button>` +
         `</div>`,
         'ready'
       );
       break;
     case 'none':
       if (!manual) { updateToast.dismiss(); return; }
-      updateToast.render(utRow(UT_SVG.check, 'Al día', 'Ya tenés la última versión.', '', true), 'ready');
+      updateToast.render(utRow(UT_SVG.check, 'Up to date', 'Already on the latest version.', '', true), 'ready');
       updateToast.autoDismiss(2800);
       break;
     case 'error':
       if (!manual) { updateToast.dismiss(); return; }
-      updateToast.render(utRow(UT_SVG.alert, 'Sin conexión', escapeHtml(status.error || 'No se pudo comprobar.'), '', true), 'error');
+      updateToast.render(utRow(UT_SVG.alert, 'Update failed', escapeHtml(status.error || 'Couldn\'t check for updates.'), '', true), 'error');
       updateToast.autoDismiss(4200);
       break;
     case 'sim-install':
-      updateToast.render(utRow(UT_SVG.restart, 'Instalando', 'Reiniciando para instalar… (simulado en dev)', '', false), 'ready');
+      updateToast.render(utRow(UT_SVG.restart, 'Installing', 'Restarting to install… (simulated in dev)', '', false), 'ready');
       updateToast.autoDismiss(2800);
       break;
   }
