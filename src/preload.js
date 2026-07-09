@@ -40,6 +40,15 @@ contextBridge.exposeInMainWorld('razor', {
     onError: (callback) => ipcRenderer.on('ai:error', (e, err) => callback(err)),
   },
 
+  // Auto-update. check(manual): manual=true → feedback visible ("al día"/error).
+  // onStatus recibe { phase, manual, version?, percent?, error? }.
+  update: {
+    check: (manual) => ipcRenderer.invoke('update:check', { manual: !!manual }),
+    download: () => ipcRenderer.invoke('update:download'),
+    install: () => ipcRenderer.invoke('update:install'),
+    onStatus: (callback) => ipcRenderer.on('update:status', (e, payload) => callback(payload)),
+  },
+
   // Catálogo de herramientas del agente y sus permisos por defecto (para la UI).
   toolCatalog,
   toolPermsDefault,

@@ -1,6 +1,6 @@
 {
   "name": "razor",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "RAZOR — Terminal AI embebido con estética cyberpunk",
   "main": "src/main.js",
   "scripts": {
@@ -13,6 +13,13 @@
   "build": {
     "appId": "com.umbra.razor",
     "productName": "RAZOR",
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "kiddshady",
+        "repo": "razor"
+      }
+    ],
     "directories": {
       "output": "dist",
       "buildResources": "build"
@@ -70,6 +77,7 @@
     "@xterm/addon-web-links": "^0.11.0",
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
+    "electron-updater": "^6.8.9",
     "node-pty": "^1.0.0"
   }
 }

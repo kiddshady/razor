@@ -1319,3 +1319,131 @@ html, body {
   96%  { opacity: .97; }
   100% { opacity: .98; }
 }
+
+/* ========== UPDATE TOAST (auto-update) ========== */
+/* Un solo nodo arriba a la derecha que muta de estado (checking → available →
+   downloading → downloaded). Oculto = deslizado a la derecha + fade; .show lo trae.
+   El borde/glow cyan vira a verde en "listo" y a rojo en error. */
+#update-toast {
+  position: fixed;
+  top: 50px;
+  right: 16px;
+  z-index: 2000;
+  width: 340px;
+  max-width: calc(100vw - 32px);
+  background: linear-gradient(180deg, var(--bg-elevated), var(--bg-panel));
+  border: 1px solid var(--border-soft);
+  border-left: 2px solid var(--cyan);
+  border-radius: 10px;
+  box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 0 22px rgba(0,255,245,.14);
+  padding: 13px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  font-family: var(--font-sans);
+  /* Estado oculto: fuera a la derecha + desvanecido. */
+  opacity: 0;
+  transform: translateX(26px) scale(.98);
+  pointer-events: none;
+  transition:
+    opacity .28s cubic-bezier(.22,1,.36,1),
+    transform .28s cubic-bezier(.22,1,.36,1),
+    border-left-color .3s ease,
+    box-shadow .3s ease;
+}
+#update-toast.show { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+#update-toast:empty { display: none; } /* sin contenido = sin caja fantasma */
+#update-toast.ready {
+  border-left-color: var(--green);
+  box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 0 22px rgba(0,255,136,.18);
+}
+#update-toast.error {
+  border-left-color: var(--red);
+  box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 0 22px rgba(255,0,68,.16);
+}
+
+.ut-row { display: flex; align-items: flex-start; gap: 11px; }
+.ut-icon {
+  flex: none;
+  color: var(--cyan);
+  margin-top: 1px;
+  display: flex;
+  filter: drop-shadow(0 0 6px var(--cyan-glow));
+  transition: color .3s ease, filter .3s ease;
+}
+#update-toast.ready .ut-icon { color: var(--green); filter: drop-shadow(0 0 6px rgba(0,255,136,.5)); }
+#update-toast.error .ut-icon { color: var(--red); filter: drop-shadow(0 0 6px var(--red-glow)); }
+.ut-content { flex: 1; min-width: 0; }
+.ut-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 3px;
+  transition: color .3s ease;
+}
+#update-toast.ready .ut-label { color: var(--green); }
+#update-toast.error .ut-label { color: var(--red); }
+.ut-title { font-size: 13px; color: var(--text); line-height: 1.4; }
+.ut-title b { font-family: var(--font-mono); color: var(--text); }
+.ut-sub { font-size: 11.5px; color: var(--text-dim); margin-top: 3px; line-height: 1.45; }
+.ut-pct { font-family: var(--font-mono); color: var(--cyan); }
+.ut-close {
+  flex: none;
+  width: 22px; height: 22px;
+  border-radius: 5px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color .15s, border-color .15s;
+}
+.ut-close:hover { color: var(--red); border-color: var(--red); }
+
+/* Spinner del "checking" */
+.ut-spin { animation: ut-spin .9s linear infinite; transform-origin: center; }
+@keyframes ut-spin { to { transform: rotate(360deg); } }
+
+/* Barra de progreso — el ancho transiciona suave a cada tick de descarga. */
+.ut-progress {
+  height: 6px;
+  border-radius: 3px;
+  overflow: hidden;
+  background: var(--bg-deep);
+  border: 1px solid var(--border-subtle);
+}
+.ut-progress-bar {
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  box-shadow: 0 0 10px var(--cyan-glow);
+  transition: width .32s cubic-bezier(.22,1,.36,1);
+}
+
+/* Acciones */
+.ut-actions { display: flex; gap: 8px; }
+.ut-btn {
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+  transition: box-shadow .15s, background .15s, color .15s, border-color .15s;
+}
+.ut-btn.primary {
+  background: var(--cyan);
+  color: var(--bg-deep);
+  box-shadow: 0 0 12px rgba(0,255,245,.3);
+}
+.ut-btn.primary:hover { box-shadow: 0 0 20px rgba(0,255,245,.55); }
+#update-toast.ready .ut-btn.primary { background: var(--green); box-shadow: 0 0 12px rgba(0,255,136,.35); }
+#update-toast.ready .ut-btn.primary:hover { box-shadow: 0 0 20px rgba(0,255,136,.6); }
+.ut-btn.ghost { background: transparent; color: var(--text-dim); border: 1px solid #20203a; }
+.ut-btn.ghost:hover { color: var(--text); border-color: var(--text-dim); }

@@ -325,11 +325,12 @@ function initTerminal(tab) {
       // no selection → let xterm send \x03 (SIGINT) to PTY
       return true;
     }
-    // Ctrl+V: paste from clipboard
+    // Ctrl+V: dejamos que xterm haga el paste nativo (evento 'paste' del DOM, que
+    // respeta bracketed paste mode). NO pegamos a mano: el navegador dispara el
+    // evento 'paste' igual, así que hacerlo acá lo duplicaba. Solo interceptamos el
+    // keydown y devolvemos false para que xterm no mande ADEMÁS el control code
+    // \x16 (Ctrl+V = "quoted insert").
     if (e.ctrlKey && e.code === 'KeyV' && e.type === 'keydown') {
-      navigator.clipboard.readText().then(text => {
-        if (text && tab.ptyId) razorAPI.pty.write(tab.ptyId, text);
-      }).catch(() => {});
       return false;
     }
     return true;
@@ -616,6 +617,150 @@ razorAPI.ai.onError((err) => {
   finalizeAIMessage();
 });
 
+/* ========== AUTO-UPDATE TOAST ========== */
+/* Refleja el flujo del updater del main: checking → available → downloading (barra) →
+   downloaded → install. Un solo nodo que muta de estado con transiciones; durante la
+   descarga sólo movemos el ancho de la barra (sin reconstruir) para que la animación
+   de width sea continua. Los checks automáticos (manual=false) que no traen novedad se
+   silencian; los manuales (comando de la paleta) siempre dan feedback. */
+const UT_SVG = {
+  rocket: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/><path d="M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/><path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/><path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/></svg>',
+  down: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
+  check: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>',
+  alert: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>',
+  spin: '<svg class="ut-spin" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></svg>',
+  restart: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>',
+  x: '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>',
+};
+
+const updateToast = {
+  _node: null,
+  _hideTimer: 0,
+  get node() { return this._node || (this._node = document.getElementById('update-toast')); },
+  render(inner, variant) {
+    const n = this.node; if (!n) return;
+    clearTimeout(this._hideTimer);
+    n.classList.remove('ready', 'error');
+    if (variant) n.classList.add(variant);
+    n.innerHTML = inner;
+    // Forzamos un reflow para que el estado "oculto" (opacity 0 + translateX) quede
+    // comprometido ANTES de agregar .show; si no, el navegador coalesce ambos frames
+    // y la caja aparece de golpe en vez de deslizarse (mata la transición de entrada).
+    void n.offsetWidth;
+    n.classList.add('show');
+  },
+  autoDismiss(ms) {
+    clearTimeout(this._hideTimer);
+    this._hideTimer = setTimeout(() => this.dismiss(), ms);
+  },
+  dismiss() {
+    const n = this.node; if (!n) return;
+    clearTimeout(this._hideTimer);
+    n.classList.remove('show');
+    // Limpiamos el contenido recién cuando terminó la transición de salida.
+    this._hideTimer = setTimeout(() => {
+      if (!n.classList.contains('show')) { n.innerHTML = ''; updateToastPhase = null; }
+    }, 340);
+  },
+};
+let updateToastPhase = null;
+
+function utRow(icon, label, title, sub, closable) {
+  return (
+    `<div class="ut-row">` +
+      `<span class="ut-icon">${icon}</span>` +
+      `<div class="ut-content">` +
+        `<div class="ut-label">${label}</div>` +
+        `<div class="ut-title">${title}</div>` +
+        (sub ? `<div class="ut-sub">${sub}</div>` : '') +
+      `</div>` +
+      (closable ? `<button class="ut-close" data-ut="later" title="Descartar">${UT_SVG.x}</button>` : '') +
+    `</div>`
+  );
+}
+
+function renderUpdate(status) {
+  const phase = status.phase;
+  const version = status.version ? escapeHtml(String(status.version)) : '';
+  const manual = !!status.manual;
+
+  // Descarga en curso: sólo actualizamos la barra (transición de width continua).
+  if (phase === 'downloading' && updateToastPhase === 'downloading') {
+    const pct = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
+    const bar = updateToast.node?.querySelector('.ut-progress-bar');
+    const num = updateToast.node?.querySelector('.ut-pct');
+    if (bar) bar.style.width = pct + '%';
+    if (num) num.textContent = pct + '%';
+    return;
+  }
+  updateToastPhase = phase;
+
+  switch (phase) {
+    case 'checking':
+      if (!manual) return; // auto-check: en silencio hasta que haya novedad
+      updateToast.render(utRow(UT_SVG.spin, 'Buscando', 'Comprobando actualizaciones…', '', false));
+      break;
+    case 'available':
+      updateToast.render(
+        utRow(UT_SVG.rocket, 'Actualización', `RAZOR <b>v${version}</b> disponible`, 'Una nueva versión está lista para descargar.', true) +
+        `<div class="ut-actions">` +
+          `<button class="ut-btn primary" data-ut="download">Descargar</button>` +
+          `<button class="ut-btn ghost" data-ut="later">Después</button>` +
+        `</div>`
+      );
+      break;
+    case 'downloading': {
+      const pct = Math.max(0, Math.min(100, Math.round(status.percent || 0)));
+      updateToast.render(
+        utRow(UT_SVG.down, 'Descargando', `Bajando la actualización… <span class="ut-pct">${pct}%</span>`, '', false) +
+        `<div class="ut-progress"><div class="ut-progress-bar" style="width:${pct}%"></div></div>`
+      );
+      break;
+    }
+    case 'downloaded':
+      updateToast.render(
+        utRow(UT_SVG.check, 'Listo', `RAZOR <b>v${version}</b> descargada`, 'Reiniciá para terminar de instalar.', true) +
+        `<div class="ut-actions">` +
+          `<button class="ut-btn primary" data-ut="install">Reiniciar e instalar</button>` +
+          `<button class="ut-btn ghost" data-ut="later">Más tarde</button>` +
+        `</div>`,
+        'ready'
+      );
+      break;
+    case 'none':
+      if (!manual) { updateToast.dismiss(); return; }
+      updateToast.render(utRow(UT_SVG.check, 'Al día', 'Ya tenés la última versión.', '', true), 'ready');
+      updateToast.autoDismiss(2800);
+      break;
+    case 'error':
+      if (!manual) { updateToast.dismiss(); return; }
+      updateToast.render(utRow(UT_SVG.alert, 'Sin conexión', escapeHtml(status.error || 'No se pudo comprobar.'), '', true), 'error');
+      updateToast.autoDismiss(4200);
+      break;
+    case 'sim-install':
+      updateToast.render(utRow(UT_SVG.restart, 'Instalando', 'Reiniciando para instalar… (simulado en dev)', '', false), 'ready');
+      updateToast.autoDismiss(2800);
+      break;
+  }
+}
+
+razorAPI.update.onStatus(renderUpdate);
+
+// Delegación de clicks del toast: descargar / instalar / descartar.
+updateToast.node?.addEventListener('click', (e) => {
+  const btn = e.target.closest('[data-ut]');
+  if (!btn) return;
+  const act = btn.dataset.ut;
+  if (act === 'download') {
+    razorAPI.update.download();
+    renderUpdate({ phase: 'downloading', percent: 0 }); // feedback inmediato al click
+  } else if (act === 'install') {
+    razorAPI.update.install();
+  } else {
+    updateToast.dismiss();
+  }
+});
+
 // Chip de actividad de herramienta. Se inserta en el flujo del dock cuando el agente
 // llama a una tool (read_file / list_dir / path_info / shell_exec / cmd_exec).
 function argSummary(input) {
@@ -735,6 +880,7 @@ const SVG_ICONS = {
   gear: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>',
   play: '<svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" stroke="none"><polygon points="6 4 20 12 6 20 6 4"/></svg>',
   trash: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>',
+  download: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>',
 };
 
 /* ========== COMMAND PALETTE ========== */
@@ -746,6 +892,7 @@ const PALETTE_COMMANDS = [
   { id: 'snippets', label: 'View snippets', shortcut: '', icon: SVG_ICONS.code, action: () => switchView('snippets') },
   { id: 'history', label: 'View history', shortcut: '', icon: SVG_ICONS.clock, action: () => switchView('history') },
   { id: 'settings', label: 'Settings', shortcut: '', icon: SVG_ICONS.gear, action: () => switchView('settings') },
+  { id: 'check-updates', label: 'Check for updates', shortcut: '', icon: SVG_ICONS.download, action: () => razorAPI.update.check(true) },
 ];
 
 function openPalette() {

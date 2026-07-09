@@ -607,7 +607,114 @@ ipcMain.handle('ai:listModels', async (event, config) => {
   }
 });
 
-app.whenReady().then(() => { createWindow(); createTray(); registerHotkeys(); });
+// --- IPC: auto-update (electron-updater) ---
+// electron-updater sólo funciona en la app EMPAQUETADA (lee app-update.yml + el
+// latest.yml del release de GitHub). En dev (npm start) no hay nada de eso: el check
+// dispara una SIMULACIÓN del flujo completo, emitiendo los mismos 'update:status' que
+// el path real, para poder ver/QA el toast sin publicar un release.
+let _autoUpdater;            // instancia cacheada (lazy require; puede quedar null)
+let _updaterWired = false;   // listeners registrados una sola vez
+let updateManual = false;    // el check en curso lo pidió el usuario → feedback visible
+
+function getAutoUpdater() {
+  if (_autoUpdater !== undefined) return _autoUpdater;
+  try {
+    _autoUpdater = require('electron-updater').autoUpdater;
+    _autoUpdater.autoDownload = false;          // primero avisamos; el usuario decide
+    _autoUpdater.autoInstallOnAppQuit = true;
+    _autoUpdater.logger = { info: console.log, warn: console.warn, error: console.error, debug: () => {} };
+  } catch (err) {
+    console.error('[RAZOR] electron-updater no disponible:', err.message);
+    _autoUpdater = null;
+  }
+  return _autoUpdater;
+}
+
+function sendUpdate(phase, extra) {
+  sendToRenderer('update:status', { phase, manual: updateManual, ...(extra || {}) });
+}
+
+function wireAutoUpdater(up) {
+  if (_updaterWired || !up) return;
+  _updaterWired = true;
+  up.on('checking-for-update', () => sendUpdate('checking'));
+  up.on('update-available',     (info) => sendUpdate('available', { version: info && info.version }));
+  up.on('update-not-available', () => sendUpdate('none'));
+  up.on('download-progress',    (p) => sendUpdate('downloading', { percent: Math.round((p && p.percent) || 0) }));
+  up.on('update-downloaded',    (info) => sendUpdate('downloaded', { version: info && info.version }));
+  up.on('error',                (err) => sendUpdate('error', { error: (err && err.message) || String(err) }));
+}
+
+// Simulación en dev: mismos update:status que el path real, con timers.
+let simTimers = [];
+const SIM_VERSION = '0.2.0';
+function clearSim() { simTimers.forEach(clearTimeout); simTimers = []; }
+function simCheck() {
+  clearSim();
+  sendUpdate('checking');
+  simTimers.push(setTimeout(() => sendUpdate('available', { version: SIM_VERSION }), 950));
+}
+function simDownload() {
+  clearSim();
+  let pct = 0;
+  const tick = () => {
+    pct += 4 + Math.floor(Math.random() * 15);
+    if (pct >= 100) {
+      sendUpdate('downloading', { percent: 100 });
+      simTimers.push(setTimeout(() => sendUpdate('downloaded', { version: SIM_VERSION }), 450));
+      return;
+    }
+    sendUpdate('downloading', { percent: pct });
+    simTimers.push(setTimeout(tick, 240));
+  };
+  simTimers.push(setTimeout(tick, 200));
+}
+
+ipcMain.handle('update:check', (event, opts) => {
+  updateManual = !!(opts && opts.manual);
+  if (!app.isPackaged) { simCheck(); return { simulated: true }; }
+  const up = getAutoUpdater();
+  if (!up) { sendUpdate('error', { error: 'Updater no disponible.' }); return { ok: false }; }
+  wireAutoUpdater(up);
+  Promise.resolve(up.checkForUpdates()).catch((err) => sendUpdate('error', { error: err.message }));
+  return { ok: true };
+});
+
+ipcMain.handle('update:download', () => {
+  if (!app.isPackaged) { simDownload(); return { simulated: true }; }
+  const up = getAutoUpdater();
+  if (!up) return { ok: false };
+  Promise.resolve(up.downloadUpdate()).catch((err) => sendUpdate('error', { error: err.message }));
+  return { ok: true };
+});
+
+ipcMain.handle('update:install', () => {
+  if (!app.isPackaged) { console.log('[RAZOR] (dev sim) quitAndInstall'); sendUpdate('sim-install'); return { simulated: true }; }
+  const up = getAutoUpdater();
+  if (!up) return { ok: false };
+  // CRÍTICO: sin isQuitting=true, el handler de 'close' esconde la ventana al tray y la
+  // instalación nunca corre. Lo forzamos y salimos en el próximo tick.
+  isQuitting = true;
+  setImmediate(() => { try { up.quitAndInstall(); } catch (e) { console.error('[RAZOR] quitAndInstall falló:', e.message); } });
+  return { ok: true };
+});
+
+app.whenReady().then(() => {
+  createWindow();
+  createTray();
+  registerHotkeys();
+  // Chequeo automático al arrancar, sólo en la app empaquetada (en dev usá el comando
+  // "Check for updates" de la paleta, que simula el flujo).
+  if (app.isPackaged) {
+    setTimeout(() => {
+      updateManual = false;
+      const up = getAutoUpdater();
+      if (!up) return;
+      wireAutoUpdater(up);
+      Promise.resolve(up.checkForUpdates()).catch((err) => console.error('[RAZOR] auto update-check falló:', err.message));
+    }, 4000);
+  }
+});
 
 app.on('window-all-closed', () => {
   // Don't quit — window is hidden to tray, PTYs keep running
