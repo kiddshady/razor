@@ -443,7 +443,7 @@ html, body {
 
 /* ========== AI DOCK ========== */
 #ai-dock {
-  height: 238px;
+  height: var(--dock-h, 238px);
   flex: none;
   background: var(--bg-panel);
   border-top: 2px solid var(--magenta);
@@ -461,6 +461,33 @@ html, body {
   opacity: 0;
   border-top-width: 0;
   pointer-events: none;
+}
+/* Mientras se arrastra el borde superior cortamos la transición de alto para que el
+   redimensionado siga al mouse sin lag. */
+#ai-dock.resizing { transition: none; }
+/* Handle de redimensionado: franja fina arriba del dock. Subís para agrandar; el alto
+   por defecto es el piso (no se puede achicar más). */
+.ai-resize {
+  flex: none;
+  height: 7px;
+  cursor: ns-resize;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.ai-resize::after {
+  content: '';
+  width: 44px;
+  height: 3px;
+  border-radius: 2px;
+  background: rgba(255,0,170,.45);
+  transition: background .15s, width .15s, box-shadow .15s;
+}
+.ai-resize:hover::after,
+#ai-dock.resizing .ai-resize::after {
+  background: var(--magenta);
+  width: 64px;
+  box-shadow: 0 0 8px var(--magenta-glow);
 }
 .ai-header {
   display: flex;

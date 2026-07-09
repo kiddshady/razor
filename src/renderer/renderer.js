@@ -992,6 +992,74 @@ function toggleAIDock() {
   dock.classList.toggle('collapsed');
 }
 
+/* ========== AI DOCK RESIZE ========== */
+/* El dock se agranda arrastrando su borde superior. El alto por defecto (238px) es
+   el PISO bloqueado: no se achica más, sólo sube — para leer/copiar una respuesta
+   larga (p.ej. un script). El alto elegido se recuerda en localStorage. */
+const DOCK_MIN_H = 238;
+const DOCK_H_KEY = 'razor.dockHeight';
+let dockIntendedH = DOCK_MIN_H; // alto deseado por el usuario (antes de recortar al techo)
+
+function fitActiveTerminal() {
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (tab && tab.fitAddon) { try { tab.fitAddon.fit(); } catch {} }
+}
+
+function dockMaxH() {
+  // Techo: siempre dejamos una franja de terminal visible.
+  const main = document.getElementById('main');
+  const h = main ? main.getBoundingClientRect().height : window.innerHeight;
+  return Math.max(DOCK_MIN_H, Math.round(h - 180));
+}
+
+function setDockHeight(px, persist) {
+  dockIntendedH = Math.max(DOCK_MIN_H, Math.min(dockMaxH(), Math.round(px)));
+  const dock = document.getElementById('ai-dock');
+  if (dock) dock.style.setProperty('--dock-h', dockIntendedH + 'px');
+  if (persist) { try { localStorage.setItem(DOCK_H_KEY, String(dockIntendedH)); } catch {} }
+}
+
+function initDockResize() {
+  const dock = document.getElementById('ai-dock');
+  const handle = dock && dock.querySelector('.ai-resize');
+  if (!dock || !handle) return;
+
+  // Restaurar el alto guardado (recortado a los límites actuales).
+  const saved = parseInt(localStorage.getItem(DOCK_H_KEY) || '', 10);
+  if (saved && saved > DOCK_MIN_H) { setDockHeight(saved, false); fitActiveTerminal(); }
+
+  let startY = 0, startH = 0, dragging = false, rafPending = false;
+  const onMove = (e) => {
+    if (!dragging) return;
+    setDockHeight(startH + (startY - e.clientY), false); // subir el mouse = agrandar
+    if (!rafPending) { // re-fit del terminal, como máximo una vez por frame
+      rafPending = true;
+      requestAnimationFrame(() => { rafPending = false; fitActiveTerminal(); });
+    }
+  };
+  const onUp = () => {
+    if (!dragging) return;
+    dragging = false;
+    dock.classList.remove('resizing');
+    document.body.style.cursor = '';
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    setDockHeight(dockIntendedH, true); // persistir el alto final
+    fitActiveTerminal();
+  };
+  handle.addEventListener('mousedown', (e) => {
+    if (dock.classList.contains('collapsed')) return; // no redimensionar si está oculto
+    dragging = true;
+    startY = e.clientY;
+    startH = dock.getBoundingClientRect().height;
+    dock.classList.add('resizing'); // corta la transición de height durante el drag
+    document.body.style.cursor = 'ns-resize';
+    e.preventDefault(); // evitar selección de texto mientras se arrastra
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+}
+
 function clearTerminal() {
   const tab = state.tabs.find(t => t.id === state.activeTabId);
   if (tab?.term) tab.term.clear();
@@ -1569,6 +1637,7 @@ function setupEvents() {
     state.tabs.forEach(tab => {
       if (tab.fitAddon) tab.fitAddon.fit();
     });
+    setDockHeight(dockIntendedH, false); // re-clampear el alto del dock al nuevo tamaño de ventana
   });
 }
 
@@ -1612,6 +1681,7 @@ function init() {
   } catch (err) {
     console.error('[RAZOR] createTab() FAILED:', err);
   }
+  initDockResize();
   updateClock();
   setInterval(updateClock, 1000);
 }
