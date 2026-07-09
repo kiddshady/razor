@@ -616,7 +616,7 @@ razorAPI.ai.onError((err) => {
   finalizeAIMessage();
 });
 
-// Chip de actividad de herramienta. Se inserta en el flujo del dock cuando R7
+// Chip de actividad de herramienta. Se inserta en el flujo del dock cuando el agente
 // llama a una tool (read_file / list_dir / path_info / shell_exec / cmd_exec).
 function argSummary(input) {
   if (!input || typeof input !== 'object') return '';
@@ -658,7 +658,7 @@ function renderToolConfirm(info) {
   const card = document.createElement('div');
   card.className = 'ai-tool-confirm';
   card.innerHTML =
-    `<div class="ai-confirm-head">${WARN_SVG}<span>R7 quiere ejecutar <b>${escapeHtml(info.name || 'tool')}</b></span></div>` +
+    `<div class="ai-confirm-head">${WARN_SVG}<span>El agente quiere ejecutar <b>${escapeHtml(info.name || 'tool')}</b></span></div>` +
     `<div class="ai-confirm-cmd">${escapeHtml(argSummary(info.input))}</div>` +
     `<div class="ai-confirm-actions">` +
       `<button type="button" class="ai-confirm-btn deny">Denegar</button>` +

@@ -1,4 +1,5 @@
-// Herramientas del agente R7 — FASE 1: SOLO LECTURA (no ejecutan ni modifican nada).
+// Herramientas del agente de IA: lectura de filesystem (read_file/list_dir/path_info)
+// y ejecución de comandos (shell_exec/cmd_exec, marcadas peligrosas: piden confirmación).
 // Se separa de main.js para poder testear la lógica sin arrancar Electron.
 const path = require('path');
 const os = require('os');

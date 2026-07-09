@@ -245,7 +245,7 @@ const PROVIDER_DEFAULTS = {
   custom:     { baseUrl: '',                              api: 'openai' },
 };
 
-// Herramientas del agente R7. Definidas en ./ai-tools.js para poder testear la
+// Herramientas del agente de IA. Definidas en ./ai-tools.js para poder testear la
 // lógica de filesystem/exec sin arrancar Electron.
 const { AI_TOOLS, OPENAI_TOOLS, TOOL_CATALOG, DEFAULT_TOOL_PERMS, executeTool } = require('./ai-tools');
 const MAX_TOOL_STEPS = 6; // techo de vueltas del loop de agente por turno

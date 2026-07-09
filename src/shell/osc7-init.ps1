@@ -1,7 +1,7 @@
 # ===============================================================
 # RAZOR — OSC 7 cwd reporting
 # ===============================================================
-# Emite la cwd actual (secuencia OSC 7) en cada prompt, para que el agente R7
+# Emite la cwd actual (secuencia OSC 7) en cada prompt, para que el agente de IA
 # opere en el directorio REAL del usuario (read_file con paths relativos,
 # shell_exec, cmd_exec) en vez de quedar clavado en el cwd inicial.
 #
