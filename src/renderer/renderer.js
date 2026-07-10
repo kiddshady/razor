@@ -488,6 +488,21 @@ function updateClock() {
 
 /* ========== AI DOCK ========== */
 const AI_HISTORY_MAX = 40; // cap de mensajes en el historial (20 intercambios)
+const AI_INPUT_MAX_H = 118; // igual que el max-height del #ai-input en styles.css
+
+// El textarea acompaña al contenido: 'auto' lo deja medir su scrollHeight real y de ahí
+// lo fijamos, hasta el tope (después scrollea solo).
+function autoGrowAIInput() {
+  const el = document.getElementById('ai-input');
+  if (!el) return;
+  el.style.height = 'auto';
+  el.style.height = Math.min(el.scrollHeight, AI_INPUT_MAX_H) + 'px';
+}
+
+function clearAIInput(input) {
+  input.value = '';
+  autoGrowAIInput(); // volver a una línea
+}
 
 async function sendAIMessage() {
   const input = document.getElementById('ai-input');
@@ -499,12 +514,12 @@ async function sendAIMessage() {
   const cfg = state.aiSettings || {};
   if (KEY_REQUIRED.has(cfg.provider) && !cfg.apiKey) {
     addAIMessage(msg, 'user');
-    input.value = '';
+    clearAIInput(input);
     addAIMessage(`No API key set for ${AI_PROVIDERS[cfg.provider]?.label || cfg.provider}. Open Settings (gear icon) and paste your key.`, 'ai');
     return;
   }
 
-  input.value = '';
+  clearAIInput(input);
   addAIMessage(msg, 'user');
 
   // Guardar el mensaje del usuario en el historial (memoria entre mensajes)
@@ -889,7 +904,7 @@ function addAIMessage(text, role) {
       <div class="ai-avatar" style="border-color:rgba(0,255,245,.4);color:var(--cyan)">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
       </div>
-      <div class="ai-bubble" style="border-left-color:var(--cyan)">${escapeHtml(text)}</div>
+      <div class="ai-bubble user-text" style="border-left-color:var(--cyan)">${escapeHtml(text)}</div>
     `;
   } else {
     msgEl.innerHTML = `
@@ -1580,9 +1595,16 @@ function setupEvents() {
 
   // AI dock
   document.getElementById('ai-send').addEventListener('click', sendAIMessage);
-  document.getElementById('ai-input').addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') sendAIMessage();
+  const aiInput = document.getElementById('ai-input');
+  aiInput.addEventListener('keydown', (e) => {
+    // Enter manda. Shift+Enter cae al comportamiento nativo del textarea: salto de línea.
+    // isComposing: no mandar con el Enter que confirma un acento/IME.
+    if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
+      e.preventDefault();
+      sendAIMessage();
+    }
   });
+  aiInput.addEventListener('input', autoGrowAIInput);
   // Al terminar de colapsar/expandir el dock, re-ajustar el terminal para que
   // use (o libere) el espacio. Filtramos por 'height' para hacerlo una sola vez.
   document.getElementById('ai-dock').addEventListener('transitionend', (e) => {

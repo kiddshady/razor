@@ -522,6 +522,9 @@ html, body {
   color: var(--text);
   line-height: 1.5;
 }
+/* Sólo el mensaje del usuario: texto plano escapado, así que los saltos de línea que
+   metió con Shift+Enter tienen que respetarse. El del agente se renderiza como markdown. */
+.ai-bubble.user-text { white-space: pre-wrap; }
 .ai-bubble .hl { color: var(--yellow); font-family: var(--font-mono); }
 .ai-bubble code {
   font-family: var(--font-mono);
@@ -670,7 +673,8 @@ html, body {
   border-radius: 7px;
   padding: 8px 10px;
   display: flex;
-  align-items: center;
+  /* flex-end: al crecer el textarea, el botón de enviar queda abajo. */
+  align-items: flex-end;
   gap: 8px;
 }
 #ai-input {
@@ -681,6 +685,14 @@ html, body {
   font-family: var(--font-sans);
   font-size: 13px;
   outline: none;
+  /* Textarea de alto variable: 1 línea al arrancar, crece hasta ~6 y ahí scrollea.
+     Sin resize manual (el dock ya se redimensiona arrastrando su borde). */
+  resize: none;
+  display: block;
+  line-height: 1.5;
+  height: 20px;
+  max-height: 118px;
+  overflow-y: auto;
 }
 #ai-input::placeholder { color: var(--text-faint); }
 #ai-send {
