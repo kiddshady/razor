@@ -56,4 +56,7 @@ contextBridge.exposeInMainWorld('razor', {
   // Platform info
   platform: process.platform,
   homeDir: process.env.USERPROFILE || process.env.HOME || 'C:\\Users\\francisco',
+  // Directorio donde arranca toda shell nueva. Tiene que coincidir con el DEFAULT_CWD
+  // de main.js, que es el fallback si el renderer no manda cwd.
+  defaultCwd: process.platform === 'win32' ? 'C:\\' : (process.env.HOME || '/'),
 });

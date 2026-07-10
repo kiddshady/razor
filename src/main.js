@@ -153,6 +153,10 @@ function getOsc7ScriptPath() {
 }
 const psQuote = (p) => p.replace(/'/g, "''"); // comilla simple PS = duplicarla
 
+// Directorio de arranque de toda shell nueva. En Windows, la raíz del disco; fuera de
+// Windows 'C:\' no existe, así que caemos al home. Espejo de razorAPI.defaultCwd.
+const DEFAULT_CWD = process.platform === 'win32' ? 'C:\\' : os.homedir();
+
 ipcMain.handle('pty:create', (event, opts) => {
   let pty;
   try {
@@ -182,7 +186,7 @@ ipcMain.handle('pty:create', (event, opts) => {
     name: 'xterm-color',
     cols: opts.cols || 80,
     rows: opts.rows || 24,
-    cwd: opts.cwd || os.homedir(),
+    cwd: opts.cwd || DEFAULT_CWD,
     env: process.env
   });
 

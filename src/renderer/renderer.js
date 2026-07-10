@@ -116,7 +116,7 @@ function createTab(name) {
     term: null,
     fitAddon: null,
     error: false,
-    cwd: razorAPI.homeDir,
+    cwd: razorAPI.defaultCwd, // toda shell nueva arranca en C:\ (ver preload/main)
   };
   state.tabs.push(tab);
   state.activeTabId = id;
