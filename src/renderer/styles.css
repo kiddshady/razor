@@ -442,8 +442,11 @@ html, body {
 #status-bar .spacer { flex: 1; }
 
 /* ========== AI DOCK ========== */
+/* El alto lo maneja --dock-h (ver renderer.js). El fallback es el piso del rango:
+   2px de border-top + 7px de .ai-resize = dock colapsado, con la franja del handle
+   a la vista para poder arrastrarlo hacia arriba. Así arranca si nunca se expandió. */
 #ai-dock {
-  height: var(--dock-h, 238px);
+  height: var(--dock-h, 9px);
   flex: none;
   background: var(--bg-panel);
   border-top: 2px solid var(--magenta);
@@ -452,21 +455,23 @@ html, body {
   flex-direction: column;
   overflow: hidden;
   animation: slideup .25s ease-out;
-  /* Transición al ocultar/expandir (toggle de la clase .collapsed). */
+  /* Transición al colapsar/expandir (cambio de --dock-h) y al ocultar en Settings. */
   transition: height .26s ease, opacity .26s ease, border-top-width .26s ease;
 }
-/* Colapsado: alto 0 + fade (opacity apaga también el box-shadow y el borde). */
-#ai-dock.collapsed {
+/* Oculto del todo (ni la franja del handle): SOLO en la vista Settings. */
+#ai-dock.view-hidden {
   height: 0;
   opacity: 0;
   border-top-width: 0;
   pointer-events: none;
 }
+/* Estado inicial restaurado de localStorage: sin animar. */
+#ai-dock.no-transition { transition: none; }
 /* Mientras se arrastra el borde superior cortamos la transición de alto para que el
    redimensionado siga al mouse sin lag. */
 #ai-dock.resizing { transition: none; }
-/* Handle de redimensionado: franja fina arriba del dock. Subís para agrandar; el alto
-   por defecto es el piso (no se puede achicar más). */
+/* Handle de redimensionado: franja fina arriba del dock. Se arrastra en todo el rango,
+   del piso (colapsado, solo esta franja) al techo. Queda siempre visible y agarrable. */
 .ai-resize {
   flex: none;
   height: 7px;

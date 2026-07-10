@@ -47,7 +47,6 @@ const state = {
   modelsLoading: false, // true mientras se autodetectan modelos
   modelsReqId: 0,      // id de request para descartar detecciones viejas
   aiDockLocked: false,        // AI dock forzado oculto (solo en la vista Settings)
-  aiDockPrevCollapsed: false, // estado del dock antes de entrar a Settings (para restaurar)
 };
 
 /* ========== AI PROVIDERS ========== */
@@ -208,7 +207,9 @@ function initTerminal(tab) {
   // padding. Por eso el margen externo va como `inset` (posición), no como
   // `padding`: así el ancho que mide el FitAddon es exacto y el texto no se
   // desborda bajo la scrollbar. El gutter interno (texto↔scrollbar) va en el .xterm.
-  termEl.style.cssText = 'position:absolute;inset:14px 18px;';
+  // Derecha en 0: el .xterm-viewport es absolute con right:0, o sea que ignora el
+  // padding del .xterm y su scrollbar queda pegada a este borde (como en settings).
+  termEl.style.cssText = 'position:absolute;inset:14px 0 14px 18px;';
   // Hide other instances
   document.querySelectorAll('.term-instance').forEach(el => el.style.display = 'none');
   container.appendChild(termEl);
@@ -988,17 +989,21 @@ function escapeHtml(str) {
 
 function toggleAIDock() {
   if (state.aiDockLocked) return; // bloqueado mientras estás en la vista Settings
-  const dock = document.getElementById('ai-dock');
-  dock.classList.toggle('collapsed');
+  // Colapsar lleva al piso; expandir vuelve al último alto que el usuario dejó.
+  setDockHeight(isDockCollapsed() ? dockExpandedH : DOCK_COLLAPSED_H, true);
 }
 
 /* ========== AI DOCK RESIZE ========== */
-/* El dock se agranda arrastrando su borde superior. El alto por defecto (238px) es
-   el PISO bloqueado: no se achica más, sólo sube — para leer/copiar una respuesta
-   larga (p.ej. un script). El alto elegido se recuerda en localStorage. */
-const DOCK_MIN_H = 238;
+/* El dock se arrastra desde su borde superior en un rango continuo: del PISO (colapsado
+   del todo: sólo queda la franja del handle, para poder volver a subirlo) al TECHO
+   (dockMaxH, que siempre deja terminal visible). Arranca colapsado y así se queda entre
+   sesiones: en localStorage guardamos el último alto expandido y si quedó colapsado. */
+const DOCK_COLLAPSED_H = 9;  // 2px de border-top + 7px de .ai-resize (box-sizing: border-box)
+const DOCK_DEFAULT_H = 238;  // alto al expandir si el usuario nunca arrastró
 const DOCK_H_KEY = 'razor.dockHeight';
-let dockIntendedH = DOCK_MIN_H; // alto deseado por el usuario (antes de recortar al techo)
+const DOCK_COLLAPSED_KEY = 'razor.dockCollapsed';
+let dockIntendedH = DOCK_COLLAPSED_H; // alto actual (antes de recortar al techo)
+let dockExpandedH = DOCK_DEFAULT_H;   // último alto > piso, para restaurar al expandir
 
 function fitActiveTerminal() {
   const tab = state.tabs.find(t => t.id === state.activeTabId);
@@ -1009,14 +1014,26 @@ function dockMaxH() {
   // Techo: siempre dejamos una franja de terminal visible.
   const main = document.getElementById('main');
   const h = main ? main.getBoundingClientRect().height : window.innerHeight;
-  return Math.max(DOCK_MIN_H, Math.round(h - 180));
+  return Math.max(DOCK_DEFAULT_H, Math.round(h - 180));
+}
+
+function isDockCollapsed() {
+  return dockIntendedH <= DOCK_COLLAPSED_H;
+}
+
+function persistDockState() {
+  try {
+    localStorage.setItem(DOCK_H_KEY, String(dockExpandedH));
+    localStorage.setItem(DOCK_COLLAPSED_KEY, isDockCollapsed() ? '1' : '0');
+  } catch {}
 }
 
 function setDockHeight(px, persist) {
-  dockIntendedH = Math.max(DOCK_MIN_H, Math.min(dockMaxH(), Math.round(px)));
+  dockIntendedH = Math.max(DOCK_COLLAPSED_H, Math.min(dockMaxH(), Math.round(px)));
   const dock = document.getElementById('ai-dock');
   if (dock) dock.style.setProperty('--dock-h', dockIntendedH + 'px');
-  if (persist) { try { localStorage.setItem(DOCK_H_KEY, String(dockIntendedH)); } catch {} }
+  if (dockIntendedH > DOCK_COLLAPSED_H) dockExpandedH = dockIntendedH; // recordar para reabrir
+  if (persist) persistDockState();
 }
 
 function initDockResize() {
@@ -1024,9 +1041,15 @@ function initDockResize() {
   const handle = dock && dock.querySelector('.ai-resize');
   if (!dock || !handle) return;
 
-  // Restaurar el alto guardado (recortado a los límites actuales).
+  // Restaurar el estado guardado (alto recortado a los límites actuales). Por defecto,
+  // colapsado. Sin transición: es el estado inicial, no una animación de apertura.
   const saved = parseInt(localStorage.getItem(DOCK_H_KEY) || '', 10);
-  if (saved && saved > DOCK_MIN_H) { setDockHeight(saved, false); fitActiveTerminal(); }
+  if (saved && saved > DOCK_COLLAPSED_H) dockExpandedH = saved;
+  const startCollapsed = localStorage.getItem(DOCK_COLLAPSED_KEY) !== '0';
+  dock.classList.add('no-transition');
+  setDockHeight(startCollapsed ? DOCK_COLLAPSED_H : dockExpandedH, false);
+  requestAnimationFrame(() => dock.classList.remove('no-transition'));
+  fitActiveTerminal();
 
   let startY = 0, startH = 0, dragging = false, rafPending = false;
   const onMove = (e) => {
@@ -1048,7 +1071,7 @@ function initDockResize() {
     fitActiveTerminal();
   };
   handle.addEventListener('mousedown', (e) => {
-    if (dock.classList.contains('collapsed')) return; // no redimensionar si está oculto
+    if (state.aiDockLocked) return; // oculto y bloqueado en la vista Settings
     dragging = true;
     startY = e.clientY;
     startH = dock.getBoundingClientRect().height;
@@ -1097,18 +1120,15 @@ function switchView(view) {
     renderSettings();
   }
 
-  // AI dock: se oculta y queda bloqueado SOLO en la vista Settings. Al salir se
-  // restaura al estado que tenía antes de entrar (colapsado o no).
+  // AI dock: se oculta del todo y queda bloqueado SOLO en la vista Settings. No hace falta
+  // recordar el estado previo: el alto vive en --dock-h y la clase sólo lo tapa.
   const aiDock = document.getElementById('ai-dock');
   if (view === 'settings') {
-    if (!state.aiDockLocked) {
-      state.aiDockPrevCollapsed = aiDock.classList.contains('collapsed');
-      state.aiDockLocked = true;
-    }
-    aiDock.classList.add('collapsed');
+    state.aiDockLocked = true;
+    aiDock.classList.add('view-hidden');
   } else if (state.aiDockLocked) {
     state.aiDockLocked = false;
-    aiDock.classList.toggle('collapsed', state.aiDockPrevCollapsed);
+    aiDock.classList.remove('view-hidden');
   }
 
   document.querySelectorAll('.side-icon[data-view]').forEach(el => {
