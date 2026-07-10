@@ -7,6 +7,9 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="../../node_modules/@xterm/xterm/css/xterm.css">
+  <!-- Strop design tokens: vendored copy of @strop/tokens. Must load before styles.css,
+       whose :root now aliases these (--cyan → var(--st-accent), …). -->
+  <link rel="stylesheet" href="strop-tokens.css">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>

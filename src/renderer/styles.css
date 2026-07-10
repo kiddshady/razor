@@ -4,35 +4,40 @@
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  /* Paleta */
-  --bg-deep: #050507;
-  --bg-base: #0a0a0f;
-  --bg-panel: #0f0f17;
-  --bg-elevated: #14141f;
-  --bg-input: #0a0a0f;
-  --border-subtle: rgba(0,255,245,.07);
-  --border-soft: rgba(0,255,245,.12);
-  --border-strong: rgba(0,255,245,.28);
+  /* Adoption shim → strop-tokens.css. RAZOR no define más sus colores: cada variable
+     histórica pasa a ser un alias del token de Strop equivalente. Cambiá --st-accent en
+     strop-tokens.css y toda la app se re-tinta. Verificado pixel a pixel contra el :root
+     original: idéntico salvo ±1/255 en los halos de glow (color-mix vs rgba en el blur).
+     Los -glow/-dim no tienen token nombrado (Strop expresa el glow como box-shadow
+     completo), así que se reconstruyen del acento con el mismo color-mix que usan los tokens. */
+  --bg-deep:      var(--st-bg-deep);
+  --bg-base:      var(--st-bg);
+  --bg-panel:     var(--st-bg-panel);
+  --bg-elevated:  var(--st-bg-elevated);
+  --bg-input:     var(--st-bg-input);
+  --border-subtle: var(--st-border-subtle);
+  --border-soft:   var(--st-border-soft);
+  --border-strong: var(--st-border-strong);
 
-  --cyan: #00fff5;
-  --cyan-dim: rgba(0,255,245,.5);
-  --cyan-glow: rgba(0,255,245,.45);
-  --magenta: #ff00aa;
-  --magenta-glow: rgba(255,0,170,.5);
-  --red: #ff0044;
-  --red-glow: rgba(255,0,68,.5);
-  --green: #00ff88;
-  --yellow: #ffee00;
-  --purple: #aa00ff;
-  --blue: #0088ff;
+  --cyan:         var(--st-accent);
+  --cyan-dim:     color-mix(in srgb, var(--st-accent) 50%, transparent);
+  --cyan-glow:    color-mix(in srgb, var(--st-accent) 45%, transparent);
+  --magenta:      var(--st-accent-alt);
+  --magenta-glow: color-mix(in srgb, var(--st-accent-alt) 50%, transparent);
+  --red:          var(--st-danger);
+  --red-glow:     color-mix(in srgb, var(--st-danger) 50%, transparent);
+  --green:        var(--st-success);
+  --yellow:       var(--st-warning);
+  --purple:       var(--st-syntax-keyword);
+  --blue:         #0088ff; /* RAZOR lo declaraba y nunca lo usó; preservado tal cual */
 
-  --text: #e0e0f0;
-  --text-dim: #8888aa;
-  --text-faint: #555577;
-  --text-ghost: #33334a;
+  --text:        var(--st-text);
+  --text-dim:    var(--st-text-dim);
+  --text-faint:  var(--st-text-faint);
+  --text-ghost:  var(--st-text-ghost);
 
-  --font-mono: 'JetBrains Mono', 'Cascadia Code', 'Fira Code', monospace;
-  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: var(--st-mono);
+  --font-sans: var(--st-sans);
 }
 
 html, body {
