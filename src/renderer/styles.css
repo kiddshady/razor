@@ -1386,6 +1386,23 @@ html, body {
 }
 #update-toast.show { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
 #update-toast:empty { display: none; } /* sin contenido = sin caja fantasma */
+/* Mutación entre fases (available → downloading → downloaded): sin esto la caja salta
+   de alto en un frame, porque cada fase reemplaza el contenido entero. El alto lo fija
+   en px el render() (height:auto no interpola) y acá lo interpolamos. overflow:hidden
+   evita que el contenido asome mientras la caja se achica. */
+#update-toast.morphing {
+  overflow: hidden;
+  transition:
+    height .26s cubic-bezier(.22,1,.36,1),
+    opacity .28s cubic-bezier(.22,1,.36,1),
+    transform .28s cubic-bezier(.22,1,.36,1),
+    border-left-color .3s ease,
+    box-shadow .3s ease;
+}
+/* El contenido nuevo entra con un fade corto en vez de aparecer de golpe. Se dispara solo
+   en cada render porque los nodos hijos se recrean. */
+#update-toast > * { animation: ut-content-in .24s ease both; }
+@keyframes ut-content-in { from { opacity: 0; transform: translateY(-3px); } }
 #update-toast.ready {
   border-left-color: var(--green);
   box-shadow: 0 14px 40px rgba(0,0,0,.55), 0 0 22px rgba(0,255,136,.18);

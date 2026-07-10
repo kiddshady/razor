@@ -686,17 +686,48 @@ const updateToast = {
   _node: null,
   _hideTimer: 0,
   get node() { return this._node || (this._node = document.getElementById('update-toast')); },
+  _endMorph: null,
   render(inner, variant) {
     const n = this.node; if (!n) return;
     clearTimeout(this._hideTimer);
+
+    // ¿Es una entrada (toast oculto/vacío) o una mutación de un toast ya visible?
+    const visible = n.classList.contains('show') && n.innerHTML !== '';
+    const fromH = visible ? n.getBoundingClientRect().height : 0;
+    this._stopMorph();
+
     n.classList.remove('ready', 'error');
     if (variant) n.classList.add(variant);
     n.innerHTML = inner;
-    // Forzamos un reflow para que el estado "oculto" (opacity 0 + translateX) quede
-    // comprometido ANTES de agregar .show; si no, el navegador coalesce ambos frames
-    // y la caja aparece de golpe en vez de deslizarse (mata la transición de entrada).
-    void n.offsetWidth;
-    n.classList.add('show');
+
+    if (!visible) {
+      // Entrada: forzamos un reflow para que el estado "oculto" (opacity 0 + translateX)
+      // quede comprometido ANTES de agregar .show; si no, el navegador coalesce ambos
+      // frames y la caja aparece de golpe en vez de deslizarse.
+      void n.offsetWidth;
+      n.classList.add('show');
+      return;
+    }
+
+    // Mutación: el contenido nuevo ya define el alto final; interpolamos desde el viejo.
+    const toH = n.getBoundingClientRect().height;
+    if (Math.round(fromH) === Math.round(toH)) return; // mismo alto: nada que animar
+    n.style.height = fromH + 'px';
+    n.classList.add('morphing');
+    void n.offsetHeight; // comprometer el alto viejo con la transición ya activa
+    n.style.height = toH + 'px';
+    this._endMorph = (e) => {
+      if (e && e.propertyName !== 'height') return;
+      this._stopMorph();
+    };
+    n.addEventListener('transitionend', this._endMorph);
+  },
+  // Vuelve a height:auto. Idempotente: lo llama el transitionend, el próximo render y dismiss().
+  _stopMorph() {
+    const n = this.node; if (!n) return;
+    if (this._endMorph) { n.removeEventListener('transitionend', this._endMorph); this._endMorph = null; }
+    n.classList.remove('morphing');
+    n.style.height = '';
   },
   autoDismiss(ms) {
     clearTimeout(this._hideTimer);
@@ -705,6 +736,7 @@ const updateToast = {
   dismiss() {
     const n = this.node; if (!n) return;
     clearTimeout(this._hideTimer);
+    this._stopMorph(); // que un morph a medio camino no deje el alto fijado en px
     n.classList.remove('show');
     // Limpiamos el contenido recién cuando terminó la transición de salida.
     this._hideTimer = setTimeout(() => {
