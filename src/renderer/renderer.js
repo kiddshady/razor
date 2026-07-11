@@ -155,6 +155,22 @@ function closeTab(id) {
   }
 }
 
+// Enfoca la terminal del tab activo cuando la ventana recupera el foco (alt-tab,
+// click en taskbar, tray, hotkey). Corre en rAF para pisar el restore de foco
+// interno de Chromium, que si no puede devolverle el foco a otro elemento justo
+// después. No robamos el foco si estás tipeando en otro campo (AI, paleta, ajustes):
+// el helper-textarea del propio xterm se excluye para que enfocar la terminal sea
+// idempotente cuando ya la tenías. Requiere cursorRevealed (no mostrar cursor antes
+// del prompt).
+function focusActiveTerminal() {
+  const tab = state.tabs.find(t => t.id === state.activeTabId);
+  if (!tab?.term || !tab.cursorRevealed) return;
+  const ae = document.activeElement;
+  if (ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA')
+      && !ae.classList.contains('xterm-helper-textarea')) return;
+  requestAnimationFrame(() => tab.term.focus());
+}
+
 function switchTab(id) {
   const tab = state.tabs.find(t => t.id === id);
   if (!tab) return;
@@ -1699,12 +1715,11 @@ function setupEvents() {
     }
   });
 
-  // Focus terminal when window gains focus (clicking taskbar, alt-tab, hotkey, etc.)
-  window.addEventListener('focus', () => {
-    const tab = state.tabs.find(t => t.id === state.activeTabId);
-    // Solo re-enfocamos si el cursor ya se reveló (no mostrarlo antes del prompt).
-    if (tab?.term && tab.cursorRevealed) tab.term.focus();
-  });
+  // Focus terminal when window gains focus (clicking taskbar, alt-tab, hotkey, etc.).
+  // Dos disparadores: el evento DOM del window y —más confiable en Windows para
+  // captar TODOS los alt-tab— el aviso del main via BrowserWindow.on('focus').
+  window.addEventListener('focus', focusActiveTerminal);
+  if (razorAPI?.onFocus) razorAPI.onFocus(focusActiveTerminal);
 
   // Resize handler
   window.addEventListener('resize', () => {

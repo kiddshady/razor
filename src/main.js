@@ -66,6 +66,16 @@ function createWindow() {
     console.error(`❌ [PRELOAD] ${preloadPath}: ${error.message}`);
   });
 
+  // Aviso al renderer cuando la ventana gana foco a nivel SO. El evento del
+  // BrowserWindow capta TODOS los alt-tab / click en taskbar / restore desde tray,
+  // que el 'focus' del window DOM a veces se pierde en Windows (frameless + DWM).
+  // El renderer usa esto para enfocar la terminal del tab activo.
+  mainWindow.on('focus', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('window:focus');
+    }
+  });
+
   // Intercept close → hide to tray instead of quitting
   mainWindow.on('close', (e) => {
     if (!isQuitting) {
