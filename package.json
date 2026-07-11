@@ -1,6 +1,6 @@
 {
   "name": "razor",
-  "version": "0.2.3",
+  "version": "0.2.4",
   "description": "RAZOR — Terminal AI embebido con estética cyberpunk",
   "main": "src/main.js",
   "scripts": {
