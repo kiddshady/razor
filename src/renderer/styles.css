@@ -296,6 +296,21 @@ html, body {
   padding: 0 !important;
 }
 
+/* Crossfade al cambiar de shell/tab (ver showTerminalFor en renderer.js). Los
+   .term-instance se apilan en el mismo inset absoluto: el entrante hace fade-in
+   + un leve slide lateral, el saliente hace fade-out y recién ahí pasa a
+   display:none. Sólo animamos opacity/transform (el texto queda crisp al asentar). */
+.term-instance {
+  opacity: 0;
+  transition: opacity .16s ease-out;
+}
+.term-instance.term-active { opacity: 1; }
+.term-instance.term-switch-in { animation: termSwitchIn .2s ease-out; }
+@keyframes termSwitchIn {
+  from { opacity: 0; transform: translateX(10px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
 /* ========== BOTTOM BAR (error / suggestion) ========== */
 #bottom-bar {
   flex: none;

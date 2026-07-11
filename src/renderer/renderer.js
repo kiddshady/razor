@@ -171,16 +171,41 @@ function focusActiveTerminal() {
   requestAnimationFrame(() => tab.term.focus());
 }
 
+// Crossfade entre shells: los .term-instance se apilan en el mismo inset absoluto,
+// así que fundimos opacidad entre el entrante y los salientes. El entrante suma una
+// animación corta de entrada (fade + slide lateral); los inactivos vuelven a
+// display:none recién al terminar su fade-out (así no conviven dos canvas WebGL
+// pintando, y las shells ocultas no se comen layout/paint).
+function showTerminalFor(id) {
+  const targetId = `term-${id}`;
+  document.querySelectorAll('.term-instance').forEach(el => {
+    if (el.id === targetId) {
+      clearTimeout(el._hideTimer);
+      el.style.display = '';
+      void el.offsetWidth; // comprometer opacity:0 antes de activar (si venía oculto)
+      el.classList.add('term-active', 'term-switch-in');
+      el.addEventListener('animationend', () => el.classList.remove('term-switch-in'), { once: true });
+    } else if (el.classList.contains('term-active') || el.style.display !== 'none') {
+      el.classList.remove('term-active');
+      clearTimeout(el._hideTimer);
+      el._hideTimer = setTimeout(() => {
+        if (!el.classList.contains('term-active')) el.style.display = 'none';
+      }, 200);
+    }
+  });
+}
+
 function switchTab(id) {
   const tab = state.tabs.find(t => t.id === id);
   if (!tab) return;
+  // Click en el tab ya activo: sólo re-enfocar, sin re-disparar el fundido.
+  if (state.activeTabId === id &&
+      document.getElementById(`term-${id}`)?.classList.contains('term-active')) {
+    if (tab.term) tab.term.focus();
+    return;
+  }
   state.activeTabId = id;
-  // Hide all terminals, show the active one
-  document.querySelectorAll('.term-instance').forEach(el => {
-    el.style.display = 'none';
-  });
-  const termEl = document.getElementById(`term-${id}`);
-  if (termEl) termEl.style.display = '';
+  showTerminalFor(id);          // crossfade: entra el activo, se desvanecen los demás
   if (tab.fitAddon) tab.fitAddon.fit();
   if (tab.term) tab.term.focus();
   renderTabs();
@@ -226,9 +251,9 @@ function initTerminal(tab) {
   // Derecha en 0: el .xterm-viewport es absolute con right:0, o sea que ignora el
   // padding del .xterm y su scrollbar queda pegada a este borde (como en settings).
   termEl.style.cssText = 'position:absolute;inset:14px 0 14px 18px;';
-  // Hide other instances
-  document.querySelectorAll('.term-instance').forEach(el => el.style.display = 'none');
   container.appendChild(termEl);
+  // Crossfade: el term nuevo entra con fundido y los demás se desvanecen.
+  showTerminalFor(tab.id);
 
   if (!Terminal) {
     console.error('[RAZOR] Cannot create terminal: Terminal constructor is undefined');
