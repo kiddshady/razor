@@ -1,4 +1,14 @@
 const { app, BrowserWindow, ipcMain, Tray, Menu, nativeImage, globalShortcut } = require('electron');
+
+// Kill the intermittent white flash on minimize→restore (Win11). When a window is
+// minimised Windows marks it occluded; Chromium then backgrounds it and frees its GPU
+// compositor surface. On restore the swap chain repaints blank for a frame → white flash.
+// These app-level switches stop the occluded-window backgrounding so the surface survives
+// and the last frame is already there on restore. Must run before app.whenReady().
+app.commandLine.appendSwitch('disable-backgrounding-occluded-windows');
+app.commandLine.appendSwitch('disable-renderer-backgrounding');
+app.commandLine.appendSwitch('disable-background-timer-throttling');
+
 const path = require('path');
 const os = require('os');
 const fs = require('fs');
