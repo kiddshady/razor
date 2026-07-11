@@ -288,13 +288,24 @@ function initTerminal(tab) {
 
   term.open(termEl);
     fitAddon.fit();
-    // El primer fit() corre antes de que cargue la web font (JetBrains Mono):
-    // xterm mide el glyph de un fallback más angosto y bloquea columnas de más,
-    // por lo que el texto se desborda del padding y se mete bajo la scrollbar.
-    // Re-medimos apenas la fuente real está cargada (por si cambia el ancho de celda).
-    const refit = () => { try { fitAddon.fit(); } catch {} };
-    requestAnimationFrame(refit);
-    if (document.fonts && document.fonts.ready) document.fonts.ready.then(refit);
+    // Red de seguridad para el race de la web font. Normalmente la shell 1 ya se crea
+    // con JetBrains Mono cargada (init() espera document.fonts antes del primer
+    // createTab), pero si por lo que sea xterm midió el glyph con el fallback, hay que
+    // RE-MEDIR la celda, no solo re-fitear: fitAddon.fit() recomputa la grilla
+    // (cols/rows) a partir de las métricas de celda YA cacheadas, así que corrige el
+    // desborde horizontal pero deja el prompt corrido en vertical. Tocar una opción de
+    // fuente dispara el CharSizeService de xterm, que vuelve a medir el glyph con la
+    // fuente real; recién ahí fiteamos con las métricas correctas.
+    const remeasure = () => {
+      try {
+        const ff = term.options.fontFamily;
+        term.options.fontFamily = ff + ', monospace'; // cambio real → gatilla el re-measure
+        term.options.fontFamily = ff;                 // volvemos al valor original, ya re-medido
+        fitAddon.fit();
+      } catch {}
+    };
+    requestAnimationFrame(remeasure);
+    if (document.fonts && document.fonts.ready) document.fonts.ready.then(remeasure);
 
     // Renderer WebGL: dibuja en GPU y clippea la selección al viewport. Evita el
     // fantasma del DOM renderer (una selección scrolleada fuera de pantalla se
@@ -1778,7 +1789,27 @@ function disableTooltips() {
 }
 
 /* ========== INIT ========== */
-function init() {
+// Garantiza que las caras que renderiza la terminal estén cargadas ANTES del primer
+// term.open() (que mide el glyph). Sin esto, la shell 1 se medía con el fallback
+// (Cascadia Code) y quedaba con el prompt unos px corrido respecto de las demás.
+// Pedimos explícitamente los estilos que xterm puede pintar (normal, bold=700, itálica)
+// y esperamos también document.fonts.ready como refuerzo. Con las fuentes bundleadas
+// localmente esto resuelve casi instantáneo; el timeout evita colgar el arranque si
+// algo raro pasara (fonts.load nunca rechaza, así que el race es sólo por las dudas).
+function ensureFontsReady() {
+  if (!document.fonts || !document.fonts.load) return Promise.resolve();
+  const faces = [
+    "14px 'JetBrains Mono'",
+    "700 14px 'JetBrains Mono'",
+    "italic 14px 'JetBrains Mono'",
+  ];
+  const loaded = Promise.all(faces.map(f => document.fonts.load(f).catch(() => {})))
+    .then(() => (document.fonts.ready || Promise.resolve()).catch(() => {}));
+  const guard = new Promise(res => setTimeout(res, 1500)); // no bloquear el arranque > 1.5s
+  return Promise.race([loaded, guard]);
+}
+
+async function init() {
   console.log('[RAZOR] init() called');
   disableTooltips();
   loadSnippets();
@@ -1789,6 +1820,7 @@ function init() {
   } catch (err) {
     console.error('[RAZOR] setupEvents() FAILED:', err);
   }
+  await ensureFontsReady(); // que la shell 1 mida el glyph con JetBrains Mono, no el fallback
   try {
     createTab('shell 1');
     console.log('[RAZOR] createTab() done');
