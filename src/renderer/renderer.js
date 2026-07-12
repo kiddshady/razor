@@ -1018,8 +1018,8 @@ const SVG_ICONS = {
 
 /* ========== COMMAND PALETTE ========== */
 const PALETTE_COMMANDS = [
-  { id: 'new-tab', label: 'New tab', shortcut: 'Ctrl+T', icon: SVG_ICONS.plus, action: () => createTab() },
-  { id: 'close-tab', label: 'Close active tab', shortcut: 'Ctrl+W', icon: SVG_ICONS.x, action: () => closeTab(state.activeTabId) },
+  { id: 'new-tab', label: 'New tab', shortcut: 'Ctrl+Shift+T', icon: SVG_ICONS.plus, action: () => createTab() },
+  { id: 'close-tab', label: 'Close active tab', shortcut: 'Ctrl+Shift+W', icon: SVG_ICONS.x, action: () => closeTab(state.activeTabId) },
   { id: 'toggle-ai', label: 'Toggle AI dock', shortcut: 'Ctrl+Shift+A', icon: SVG_ICONS.robot, action: () => toggleAIDock() },
   { id: 'clear', label: 'Clear terminal', shortcut: 'Ctrl+L', icon: SVG_ICONS.rotate, action: () => clearTerminal() },
   { id: 'snippets', label: 'View snippets', shortcut: '', icon: SVG_ICONS.code, action: () => switchView('snippets') },
@@ -1720,14 +1720,17 @@ function setupEvents() {
       else openPalette();
       return;
     }
-    // Ctrl+T → New tab
-    if (e.ctrlKey && !e.shiftKey && e.key === 't') {
+    // Ctrl+Shift+T → New tab. Antes era Ctrl+T, pero ese combo lo consume/escribe el
+    // shell en la terminal (y lo teníamos con preventDefault, robándoselo). Con Shift
+    // queda reservado sólo para tabs y Ctrl+T pasa limpio al shell.
+    if (e.ctrlKey && e.shiftKey && (e.key === 'T' || e.key === 't')) {
       e.preventDefault();
       createTab();
       return;
     }
-    // Ctrl+W → Close tab
-    if (e.ctrlKey && !e.shiftKey && e.key === 'w') {
+    // Ctrl+Shift+W → Close tab. Igual que new tab: Ctrl+W en el shell borra la palabra
+    // anterior, así que lo reservamos con Shift y Ctrl+W pasa limpio a la terminal.
+    if (e.ctrlKey && e.shiftKey && (e.key === 'W' || e.key === 'w')) {
       e.preventDefault();
       closeTab(state.activeTabId);
       return;
