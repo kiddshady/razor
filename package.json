@@ -8,7 +8,8 @@
     "dev": "electron . --dev",
     "dist": "electron-builder --win",
     "dist:portable": "electron-builder --win portable",
-    "dist:nsis": "electron-builder --win nsis"
+    "dist:nsis": "electron-builder --win nsis",
+    "postinstall": "electron-builder install-app-deps"
   },
   "build": {
     "appId": "com.umbra.razor",
@@ -69,7 +70,6 @@
   "author": "Fran",
   "license": "MIT",
   "devDependencies": {
-    "@electron/rebuild": "^4.1.0",
     "electron": "40.10.2",
     "electron-builder": "^25.1.8"
   },
