@@ -320,10 +320,31 @@ html, body {
   display: flex;
   gap: 13px;
   align-items: flex-start;
-  animation: slideup .22s ease-out;
   box-shadow: 0 -8px 24px rgba(255,0,68,.12);
+  /* Entrada y salida suaves. Antes: `animation: slideup` + `.hidden{display:none}`.
+     display no es animable, así que dependíamos de que Chromium re-disparara la
+     animación al pasar display:none→flex (frágil: a veces el banner aparecía de
+     golpe) y, al ocultarse, se iba sin transición. Con transition-behavior:
+     allow-discrete el flip de display se difiere hasta el final, y @starting-style
+     da el estado desde el que entra — así opacity/transform animan en ambos sentidos. */
+  opacity: 1;
+  transform: translateY(0);
+  transition:
+    opacity   var(--st-dur-4) var(--st-ease-out),
+    transform var(--st-dur-4) var(--st-ease-out),
+    display   var(--st-dur-4) allow-discrete;
 }
-#bottom-bar.hidden { display: none; }
+@starting-style {
+  #bottom-bar:not(.hidden) {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+#bottom-bar.hidden {
+  display: none;
+  opacity: 0;
+  transform: translateY(20px);
+}
 .err-icon {
   flex: none;
   color: var(--red);
@@ -742,9 +763,17 @@ html, body {
   align-items: flex-start;
   justify-content: center;
   padding-top: 120px;
-  animation: scalein .15s ease-out;
+  /* Mismo patrón que #bottom-bar: fade del overlay (+ scale del panel, abajo),
+     entrada y salida. display allow-discrete difiere el `none` hasta el final. */
+  opacity: 1;
+  transition:
+    opacity var(--st-dur-2) var(--st-ease-out),
+    display var(--st-dur-2) allow-discrete;
 }
-#palette-overlay.hidden { display: none; }
+@starting-style {
+  #palette-overlay:not(.hidden) { opacity: 0; }
+}
+#palette-overlay.hidden { display: none; opacity: 0; }
 #palette {
   width: 560px;
   max-width: 90vw;
@@ -753,7 +782,15 @@ html, body {
   border-radius: 10px;
   box-shadow: 0 20px 60px rgba(0,0,0,.6), 0 0 40px rgba(0,255,245,.08);
   overflow: hidden;
+  transition:
+    transform var(--st-dur-2) var(--st-ease-out),
+    opacity   var(--st-dur-2) var(--st-ease-out);
 }
+/* el panel entra/sale con un leve zoom mientras el overlay hace fade */
+@starting-style {
+  #palette-overlay:not(.hidden) #palette { transform: scale(.965); opacity: 0; }
+}
+#palette-overlay.hidden #palette { transform: scale(.965); opacity: 0; }
 #palette-input {
   width: 100%;
   background: transparent;
@@ -1283,10 +1320,6 @@ html, body {
 @keyframes slideup {
   from { transform: translateY(20px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
-}
-@keyframes scalein {
-  from { transform: scale(.965); opacity: 0; }
-  to { transform: scale(1); opacity: 1; }
 }
 @keyframes softpulse { 0%,100% { opacity: .5; } 50% { opacity: .9; } }
 @keyframes viewEnter {
