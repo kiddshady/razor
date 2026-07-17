@@ -34,10 +34,11 @@ if (!gotTheLock) {
 
 function createWindow() {
   mainWindow = new BrowserWindow({
-    width: 1380,
-    height: 848,
+    width: 1113,
+    height: 626,
     minWidth: 900,
     minHeight: 600,
+    resizable: false,
     maximizable: false,
     backgroundColor: '#050507',
     titleBarStyle: 'hidden',
