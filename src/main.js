@@ -719,8 +719,10 @@ ipcMain.handle('update:install', () => {
   if (!up) return { ok: false };
   // CRÍTICO: sin isQuitting=true, el handler de 'close' esconde la ventana al tray y la
   // instalación nunca corre. Lo forzamos y salimos en el próximo tick.
+  // (true, true): el instalador corre en silencio y RAZOR vuelve a abrirse al terminar;
+  // sin argumentos aparecía el asistente del NSIS, una ventana que no pide nada.
   isQuitting = true;
-  setImmediate(() => { try { up.quitAndInstall(); } catch (e) { console.error('[RAZOR] quitAndInstall falló:', e.message); } });
+  setImmediate(() => { try { up.quitAndInstall(true, true); } catch (e) { console.error('[RAZOR] quitAndInstall falló:', e.message); } });
   return { ok: true };
 });
 
